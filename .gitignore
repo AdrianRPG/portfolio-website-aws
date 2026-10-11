@@ -32,3 +32,10 @@ TODO.md
 
 # Local AWS configuration
 aws-practice/github-actions-policy.json
+
+# AWS Lambda local deployment artifacts
+backend/weather_lambda/*.zip
+response.json
+
+# Local AWS configuration
+aws-practice/lambda-runtime-policy.json

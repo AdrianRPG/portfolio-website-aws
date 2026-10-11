@@ -380,3 +380,43 @@ if (topicsContainer) {
   document.addEventListener('click', () => closeAll(null));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAll(null); });
 })();
+
+async function loadWeather() {
+  const temperatureElement = document.getElementById("weather-temperature");
+  const descriptionElement = document.getElementById("weather-description");
+  const feelsLikeElement = document.getElementById("weather-feels-like");
+  const humidityElement = document.getElementById("weather-humidity");
+  const updatedElement = document.getElementById("weather-updated");
+
+  if (!temperatureElement) return;
+
+  try {
+    const response = await fetch("/data/weather.json", {
+      cache: "no-store"
+    });
+    if (!response.ok) {
+      throw new Error(`Weather request failed: ${response.status}`);
+    }
+    const weather = await response.json();
+    temperatureElement.textContent = `${weather.temperature}°F`;
+    descriptionElement.textContent = weather.description;
+    feelsLikeElement.textContent = `${weather.feels_like}°F`;
+    humidityElement.textContent = `${weather.humidity}%`;
+    const updatedTime = new Date(weather.updated_at);
+    updatedElement.textContent =
+      `Last updated ${updatedTime.toLocaleString([], {
+        dateStyle: "medium",
+        timeStyle: "short"
+      })}`;
+  } catch (error) {
+    console.error("Unable to load weather data:", error);
+    descriptionElement.textContent = "Weather unavailable";
+    updatedElement.textContent = "Unable to load the latest weather data.";
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", loadWeather);
+} else {
+  loadWeather();
+}
