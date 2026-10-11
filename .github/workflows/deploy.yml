@@ -1,0 +1,50 @@
+name: Deploy Portfolio to AWS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy website files to S3
+        run: |
+          aws s3 sync . "s3://${{ vars.S3_BUCKET }}" \
+            --delete \
+            --exclude "*" \
+            --include "index.html" \
+            --include "style.css" \
+            --include "script.js" \
+            --include "headshot.webp" \
+            --include "headshot-opt.jpg" \
+            --include "about.webp" \
+            --include "about.jpg" \
+            --include "fiu.webp" \
+            --include "fiu.jpg" \
+            --include "shellhacks.webp" \
+            --include "shellhacks.jpg" \
+            --include "og-image.png" \
+            --include "adrian-perez-galindo-resume.pdf"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/*"
