@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# npm logs / debug
+npm-debug.log*
+*.log
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+
+# High-resolution source image (12MB) — used only to regenerate og-image.png
+# locally via generate-og-image.js. The site itself serves the optimized
+# headshot.webp / headshot-opt.jpg, so this master file is not deployed.
+headshot.jpg
+
+# Original source images — the site serves the optimized .webp/.jpg versions
+# (about.*, shellhacks.*, fiu.*), so these originals are not deployed.
+about_section.jfif
+shellhacks.jfif
+fiu_portada.jpeg
+
+# Environment variables / secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Local notes
+TODO.md

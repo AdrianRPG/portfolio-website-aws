@@ -1,0 +1,15 @@
+{
+  "name": "portfolio-website",
+  "version": "1.0.0",
+  "description": "Adrian Renato Pérez Galindo — Computer Science portfolio website.",
+  "private": true,
+  "scripts": {
+    "dev": "live-server --port=3000",
+    "start": "live-server --port=3000",
+    "og-image": "node generate-og-image.js"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2",
+    "sharp": "^0.35.5"
+  }
+}

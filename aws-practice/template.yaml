@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Practice stack: a private S3 bucket served over HTTPS through CloudFront
+  using Origin Access Control (OAC). The bucket blocks all public access;
+  only the CloudFront distribution can read objects, enforced by a bucket
+  policy scoped to this specific distribution.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: cf-s3-practice
+    Description: Short name used as a prefix for resources.
+
+Resources:
+  # -------------------------------------------------------------------------
+  # Private S3 bucket. All public access is blocked. Objects are only
+  # reachable through CloudFront (never via a direct S3 URL).
+  # -------------------------------------------------------------------------
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      BucketName: !Sub "${ProjectName}-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+
+  # -------------------------------------------------------------------------
+  # Origin Access Control (OAC): the modern replacement for OAI. It lets
+  # CloudFront sign its requests to S3 with SigV4 so the bucket can stay
+  # fully private.
+  # -------------------------------------------------------------------------
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${ProjectName}-oac"
+        Description: OAC for the practice S3 origin
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # -------------------------------------------------------------------------
+  # CloudFront distribution. Serves content over HTTPS, redirects any HTTP
+  # request to HTTPS, and uses the OAC to reach the private bucket.
+  # -------------------------------------------------------------------------
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub "${ProjectName} practice distribution"
+        Enabled: true
+        DefaultRootObject: index.html
+        PriceClass: PriceClass_100
+        HttpVersion: http2
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          Compress: true
+          # AWS managed "CachingOptimized" cache policy.
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        ViewerCertificate:
+          # Uses the default *.cloudfront.net certificate (free HTTPS).
+          CloudFrontDefaultCertificate: true
+
+  # -------------------------------------------------------------------------
+  # Bucket policy: allows ONLY this CloudFront distribution (matched by its
+  # ARN via the AWS:SourceArn condition) to read objects. Nothing else can.
+  # -------------------------------------------------------------------------
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontServicePrincipalReadOnly
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${SiteBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution.Id}"
+
+Outputs:
+  BucketName:
+    Description: Name of the private S3 bucket.
+    Value: !Ref SiteBucket
+  DistributionId:
+    Description: CloudFront distribution ID.
+    Value: !Ref Distribution
+  DistributionDomainName:
+    Description: Public HTTPS URL of the site.
+    Value: !Sub "https://${Distribution.DomainName}"
